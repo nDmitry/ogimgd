@@ -6,14 +6,12 @@ ENV CGO_CFLAGS_ALLOW="-Xpreprocessor"
 RUN apk add --no-cache go gcc g++ vips-dev
 COPY . /build
 WORKDIR /build
-RUN go get
-RUN go build -a -o /build/app -ldflags="-s -w -h" .
+RUN go get ./...
+RUN go build -a -o /build/app -ldflags="-s -w -h" ./cmd/ogimgd
 
 FROM alpine:latest
-RUN apk --no-cache add ca-certificates mailcap ffmpeg vips
-COPY --from=builder /build/app /app/previewer
+RUN apk --no-cache add ca-certificates mailcap vips
+COPY --from=builder /build/app /app/ogimgd
 WORKDIR /app
 
-EXPOSE 3000
-
-ENTRYPOINT ["/app/previewer"]
+ENTRYPOINT ["/app/ogimgd"]

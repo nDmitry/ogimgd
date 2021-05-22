@@ -1,0 +1,10 @@
+version: "3.8"
+services:
+  app:
+    build: .
+    environment:
+      - PORT=8201
+    ports:
+      - 8201:8201
+    user: "0"
+    restart: unless-stopped
