@@ -2,6 +2,7 @@ package preview
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"image"
 	"image/color"
@@ -23,7 +24,7 @@ const (
 )
 
 type getter interface {
-	Get(url string) ([]byte, error)
+	GetAll(context.Context, []string) ([][]byte, error)
 }
 
 // Options defines a set of options required to draw a p.ctx.
@@ -35,13 +36,19 @@ type Options struct {
 	// Opacity value for the black foreground under the title
 	Opacity float64
 	// Avatar diameter
-	AvaD   int
-	Title  string
-	Author string
+	AvaD  int
+	Title string
+	// Title font size
+	TitleSize float64
+	Author    string
+	// Author font size
+	AuthorSize float64
 	// Logo left part text (optional)
 	LabelL string
-	// Logo right part text (required)
+	// Logo right part text (optional)
 	LabelR string
+	// Label font size
+	LabelSize float64
 	// An URL to a background image, either of canvas size or it will be thumbnailed and smart-cropped
 	BgURL string
 	// An URL to an author avatar pic
@@ -52,25 +59,39 @@ type Options struct {
 	IconW int
 	// Icon height
 	IconH int
+	// Resulting JPEG quality
+	Quality int
 }
 
+// Preview can draw a preview using the provided Options.
 type Preview struct {
-	Opts   Options
+	opts   *Options
 	ctx    *gg.Context
 	remote getter
 }
 
-func New(opts Options) *Preview {
+// New returns an initialized Preview.
+func New() *Preview {
 	return &Preview{
-		Opts:   opts,
-		ctx:    gg.NewContext(opts.CanvasW, opts.CanvasH),
+		opts:   nil,
+		ctx:    nil,
 		remote: remote.New(),
 	}
 }
 
-// Draw draws a preview using the options provided.
-func (p *Preview) Draw() (image.Image, error) {
-	if err := p.drawBackground(); err != nil {
+// Draw draws a preview using the provided Options.
+func (p *Preview) Draw(ctx context.Context, opts Options) (image.Image, error) {
+	p.opts = &opts
+	p.ctx = gg.NewContext(opts.CanvasW, opts.CanvasH)
+	urlsOrPaths := []string{opts.BgURL, opts.AvaURL, opts.IconURL}
+
+	imgBufs, err := p.remote.GetAll(ctx, urlsOrPaths)
+
+	if err != nil {
+		return nil, fmt.Errorf("could not get an image: %w", err)
+	}
+
+	if err := p.drawBackground(imgBufs[0]); err != nil {
 		return nil, err
 	}
 
@@ -78,7 +99,7 @@ func (p *Preview) Draw() (image.Image, error) {
 		return nil, err
 	}
 
-	if err := p.drawAvatar(); err != nil {
+	if err := p.drawAvatar(imgBufs[1]); err != nil {
 		return nil, err
 	}
 
@@ -90,21 +111,15 @@ func (p *Preview) Draw() (image.Image, error) {
 		return nil, err
 	}
 
-	if err := p.drawLabel(); err != nil {
+	if err := p.drawLabel(imgBufs[2]); err != nil {
 		return nil, err
 	}
 
 	return p.ctx.Image(), nil
 }
 
-func (p *Preview) drawBackground() error {
-	bgBuf, err := p.remote.Get(p.Opts.BgURL)
-
-	if err != nil {
-		return fmt.Errorf("could not get the background %s: %w", p.Opts.BgURL, err)
-	}
-
-	bgBuf, err = resize(bgBuf, p.Opts.CanvasW, p.Opts.CanvasH)
+func (p *Preview) drawBackground(bgBuf []byte) error {
+	bgBuf, err := resize(bgBuf, p.opts.CanvasW, p.opts.CanvasH)
 
 	if err != nil {
 		return fmt.Errorf("could not resize the background: %w", err)
@@ -122,30 +137,24 @@ func (p *Preview) drawBackground() error {
 }
 
 func (p *Preview) drawForeground() error {
-	p.ctx.SetColor(color.RGBA{0, 0, 0, uint8(255.0 * p.Opts.Opacity)})
-	p.ctx.DrawRectangle(margin, margin, float64(p.Opts.CanvasW)-(margin*2), float64(p.Opts.CanvasH)-(margin*2))
+	p.ctx.SetColor(color.RGBA{0, 0, 0, uint8(255.0 * p.opts.Opacity)})
+	p.ctx.DrawRectangle(margin, margin, float64(p.opts.CanvasW)-(margin*2), float64(p.opts.CanvasH)-(margin*2))
 	p.ctx.Fill()
 
 	return nil
 }
 
-func (p *Preview) drawAvatar() error {
+func (p *Preview) drawAvatar(avaBuf []byte) error {
 	// draw the avatar border circle
-	avaX := padding + float64(p.Opts.AvaD+border)/2
-	avaY := padding + float64(p.Opts.AvaD+border)/2
+	avaX := padding + float64(p.opts.AvaD+border)/2
+	avaY := padding + float64(p.opts.AvaD+border)/2
 
-	p.ctx.DrawCircle(avaX, avaY, float64((p.Opts.AvaD+8)/2))
+	p.ctx.DrawCircle(avaX, avaY, float64((p.opts.AvaD+8)/2))
 	p.ctx.SetHexColor("#FFFFFF")
 	p.ctx.Fill()
 
 	// draw the avatar itself (cropped to a circle)
-	avaBuf, err := p.remote.Get(p.Opts.AvaURL)
-
-	if err != nil {
-		return fmt.Errorf("could not get the avatar %s: %w", p.Opts.AvaURL, err)
-	}
-
-	avaBuf, err = resize(avaBuf, p.Opts.AvaD, p.Opts.AvaD)
+	avaBuf, err := resize(avaBuf, p.opts.AvaD, p.opts.AvaD)
 
 	if err != nil {
 		return fmt.Errorf("could not resize the avatar: %w", err)
@@ -165,25 +174,25 @@ func (p *Preview) drawAvatar() error {
 }
 
 func (p *Preview) drawAuthor() error {
-	p.ctx.LoadFontFace(filepath.Join("fonts", "Ubuntu-Medium.ttf"), 36)
+	p.ctx.LoadFontFace(filepath.Join("fonts", "Ubuntu-Medium.ttf"), p.opts.AuthorSize)
 	p.ctx.SetColor(color.RGBA{R: 255, G: 255, B: 255, A: 204})
 
-	authorX := padding + float64(p.Opts.AvaD) + padding/2
-	authorY := padding + float64(p.Opts.AvaD)/2
+	authorX := padding + float64(p.opts.AvaD) + padding/2
+	authorY := padding + float64(p.opts.AvaD)/2
 
-	p.ctx.DrawStringAnchored(p.Opts.Author, authorX, authorY, 0, 0.5)
+	p.ctx.DrawStringAnchored(p.opts.Author, authorX, authorY, 0, 0.5)
 
 	return nil
 }
 
 func (p *Preview) drawTitle() error {
-	p.ctx.LoadFontFace(filepath.Join("fonts", "Ubuntu-Medium.ttf"), 76)
+	p.ctx.LoadFontFace(filepath.Join("fonts", "Ubuntu-Medium.ttf"), p.opts.TitleSize)
 	p.ctx.SetColor(color.White)
 
 	titleX := padding
-	titleY := padding*2 + float64(p.Opts.AvaD)
-	maxWidth := float64(p.Opts.CanvasW) - padding - margin*2
-	title := p.Opts.Title
+	titleY := padding*2 + float64(p.opts.AvaD)
+	maxWidth := float64(p.opts.CanvasW) - padding - margin*2
+	title := p.opts.Title
 
 	if utf8.RuneCountInString(title) > maxTitleLength {
 		title = string([]rune(title)[0:maxTitleLength]) + "…"
@@ -194,25 +203,25 @@ func (p *Preview) drawTitle() error {
 	return nil
 }
 
-func (p *Preview) drawLabel() error {
+func (p *Preview) drawLabel(iconBuf []byte) error {
 	// draw the required right part of the label
-	p.ctx.LoadFontFace(filepath.Join("fonts", "Ubuntu-Bold.ttf"), 36)
-	p.ctx.SetColor(color.White)
+	labelX := float64(p.opts.CanvasW) - padding
+	labelY := float64(p.opts.CanvasH) - padding
+	labelRightWidth := 0.0
+	labelRightHeight := padding
 
-	labelRightWidth, labelRightHeight := p.ctx.MeasureString(p.Opts.LabelR)
-	labelX := float64(p.Opts.CanvasW) - labelRightWidth - padding
-	labelY := float64(p.Opts.CanvasH) - padding
+	if len(p.opts.LabelL) > 0 {
+		p.ctx.LoadFontFace(filepath.Join("fonts", "Ubuntu-Bold.ttf"), p.opts.LabelSize)
+		p.ctx.SetColor(color.White)
 
-	p.ctx.DrawString(p.Opts.LabelR, labelX, labelY)
+		labelRightWidth, labelRightHeight = p.ctx.MeasureString(p.opts.LabelR)
+		labelX -= labelRightWidth
 
-	// draw the icon
-	iconBuf, err := p.remote.Get(p.Opts.IconURL)
-
-	if err != nil {
-		return fmt.Errorf("could not get the icon: %w", err)
+		p.ctx.DrawString(p.opts.LabelR, labelX, labelY)
 	}
 
-	iconBuf, err = resize(iconBuf, p.Opts.IconW, p.Opts.IconH)
+	// draw the icon
+	iconBuf, err := resize(iconBuf, p.opts.IconW, p.opts.IconH)
 
 	if err != nil {
 		return fmt.Errorf("could not resize the icon: %w", err)
@@ -224,18 +233,18 @@ func (p *Preview) drawLabel() error {
 		return fmt.Errorf("could not decode the icon: %w", err)
 	}
 
-	iconX := int(labelX) - p.Opts.IconW - int(margin/2)
-	iconY := p.Opts.CanvasH - int(padding) - int(labelRightHeight/2)
+	iconX := int(labelX) - p.opts.IconW - int(margin/2)
+	iconY := p.opts.CanvasH - int(padding) - int(labelRightHeight/2)
 
 	p.ctx.DrawImageAnchored(iconImg, iconX, iconY, 0, 0.5)
 
-	if len(p.Opts.LabelL) > 0 {
-		labelLeftWidth, _ := p.ctx.MeasureString(p.Opts.LabelL)
+	if len(p.opts.LabelL) > 0 {
+		labelLeftWidth, _ := p.ctx.MeasureString(p.opts.LabelL)
 
-		labelX = float64(p.Opts.CanvasW) - labelLeftWidth - labelRightWidth - float64(p.Opts.IconW) - margin - padding
-		labelY = float64(p.Opts.CanvasH) - padding
+		labelX = float64(p.opts.CanvasW) - labelLeftWidth - labelRightWidth - float64(p.opts.IconW) - margin - padding
+		labelY = float64(p.opts.CanvasH) - padding
 
-		p.ctx.DrawString(p.Opts.LabelL, labelX, labelY)
+		p.ctx.DrawString(p.opts.LabelL, labelX, labelY)
 	}
 
 	return nil
@@ -250,7 +259,7 @@ func resize(buf []byte, w, h int) ([]byte, error) {
 		return nil, err
 	}
 
-	if config.Width == w || config.Height == h {
+	if config.Width == w && config.Height == h {
 		return buf, nil
 	}
 
