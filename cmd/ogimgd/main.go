@@ -1,7 +1,9 @@
 package main
 
 import (
-	"flag"
+	"log"
+	"os"
+	"strconv"
 
 	"github.com/davidbyttow/govips/v2/vips"
 	"github.com/nDmitry/ogimgd/internal/preview"
@@ -9,7 +11,15 @@ import (
 )
 
 func main() {
-	var port = *flag.Int("port", 8201, "HTTP server port to listen")
+	port := 8201
+
+	if os.Getenv("PORT") != "" {
+		var err error
+
+		if port, err = strconv.Atoi(os.Getenv("PORT")); err != nil {
+			log.Fatalf("could not parse the app port: %s\n", os.Getenv("PORT"))
+		}
+	}
 
 	vips.LoggingSettings(nil, vips.LogLevelError)
 

@@ -3,17 +3,19 @@ package preview
 import (
 	"bytes"
 	"context"
+	"embed"
 	"fmt"
 	"image"
 	"image/color"
 	"log"
 	"math"
-	"path/filepath"
 	"unicode/utf8"
 
 	"github.com/davidbyttow/govips/v2/vips"
 	"github.com/fogleman/gg"
+	"github.com/golang/freetype/truetype"
 	"github.com/nDmitry/ogimgd/internal/remote"
+	"golang.org/x/image/font"
 )
 
 const (
@@ -26,6 +28,9 @@ const (
 type getter interface {
 	GetAll(context.Context, []string) ([][]byte, error)
 }
+
+//go:embed fonts/*
+var fonts embed.FS
 
 // Options defines a set of options required to draw a p.ctx.
 type Options struct {
@@ -174,7 +179,13 @@ func (p *Preview) drawAvatar(avaBuf []byte) error {
 }
 
 func (p *Preview) drawAuthor() error {
-	p.ctx.LoadFontFace(filepath.Join("fonts", "Ubuntu-Medium.ttf"), p.opts.AuthorSize)
+	font, err := loadFont("fonts/Ubuntu-Medium.ttf", p.opts.AuthorSize)
+
+	if err != nil {
+		return fmt.Errorf("could not load a font face: %w", err)
+	}
+
+	p.ctx.SetFontFace(font)
 	p.ctx.SetColor(color.RGBA{R: 255, G: 255, B: 255, A: 204})
 
 	authorX := padding + float64(p.opts.AvaD) + padding/2
@@ -186,7 +197,13 @@ func (p *Preview) drawAuthor() error {
 }
 
 func (p *Preview) drawTitle() error {
-	p.ctx.LoadFontFace(filepath.Join("fonts", "Ubuntu-Medium.ttf"), p.opts.TitleSize)
+	font, err := loadFont("fonts/Ubuntu-Medium.ttf", p.opts.TitleSize)
+
+	if err != nil {
+		return fmt.Errorf("could not load a font face: %w", err)
+	}
+
+	p.ctx.SetFontFace(font)
 	p.ctx.SetColor(color.White)
 
 	titleX := padding
@@ -198,7 +215,7 @@ func (p *Preview) drawTitle() error {
 		title = string([]rune(title)[0:maxTitleLength]) + "…"
 	}
 
-	p.ctx.DrawStringWrapped(title, titleX, titleY, 0, 0, maxWidth, 1.6, gg.AlignLeft)
+	p.ctx.DrawStringWrapped(title, titleX, titleY, 0, 0, maxWidth, 1.2, gg.AlignLeft)
 
 	return nil
 }
@@ -211,7 +228,13 @@ func (p *Preview) drawLabel(iconBuf []byte) error {
 	labelRightHeight := padding
 
 	if len(p.opts.LabelL) > 0 {
-		p.ctx.LoadFontFace(filepath.Join("fonts", "Ubuntu-Bold.ttf"), p.opts.LabelSize)
+		font, err := loadFont("fonts/Ubuntu-Bold.ttf", p.opts.LabelSize)
+
+		if err != nil {
+			return fmt.Errorf("could not load a font face: %w", err)
+		}
+
+		p.ctx.SetFontFace(font)
 		p.ctx.SetColor(color.White)
 
 		labelRightWidth, labelRightHeight = p.ctx.MeasureString(p.opts.LabelR)
@@ -234,9 +257,9 @@ func (p *Preview) drawLabel(iconBuf []byte) error {
 	}
 
 	iconX := int(labelX) - p.opts.IconW - int(margin/2)
-	iconY := p.opts.CanvasH - int(padding) - int(labelRightHeight/2)
+	iconY := p.opts.CanvasH - int(padding) - int(labelRightHeight)
 
-	p.ctx.DrawImageAnchored(iconImg, iconX, iconY, 0, 0.5)
+	p.ctx.DrawImage(iconImg, iconX, iconY)
 
 	if len(p.opts.LabelL) > 0 {
 		labelLeftWidth, _ := p.ctx.MeasureString(p.opts.LabelL)
@@ -307,4 +330,25 @@ func circle(src image.Image) image.Image {
 	mask.DrawImage(src, 0, 0)
 
 	return mask.Image()
+}
+
+func loadFont(name string, points float64) (font.Face, error) {
+	fontBytes, err := fonts.ReadFile(name)
+
+	if err != nil {
+		return nil, err
+	}
+
+	f, err := truetype.Parse(fontBytes)
+
+	if err != nil {
+		return nil, err
+	}
+
+	face := truetype.NewFace(f, &truetype.Options{
+		Size: points,
+		// Hinting: font.HintingFull,
+	})
+
+	return face, nil
 }

@@ -2,19 +2,22 @@ package remote
 
 import (
 	"context"
+	"embed"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
-	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 )
 
 const bodyLimit = 10 * 1024 * 1024
+
+//go:embed images/*
+var images embed.FS
 
 // Remote can obtain remote resources to use in the preview.
 type Remote struct {
@@ -40,8 +43,7 @@ func (r *Remote) Get(ctx context.Context, urlOrPath string) (buf []byte, err err
 	if parseErr != nil {
 		// replace here is paranoia (base path extraction is already enough)
 		filename := filepath.Base(strings.ReplaceAll(urlOrPath, "../", ""))
-
-		buf, err = os.ReadFile(filepath.Join("./static/", filename))
+		buf, err = images.ReadFile(filepath.Join("images", filename))
 
 		if err != nil {
 			return nil, fmt.Errorf("could not parse a URL nor open a file with this filename: %s: %w", filename, err)
