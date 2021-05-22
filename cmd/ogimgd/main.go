@@ -23,14 +23,15 @@ func main() {
 	p := preview.New(preview.Options{
 		CanvasW: 1200,
 		CanvasH: 630,
+		Opacity: 0.6,
 		AvaD:    64,
 		Title:   "Инвестиции в зарубежные бумаги через российских брокеров: варианты и подводные камни",
 		Author:  "@DmitryNikitenko",
 		LabelL:  "Rational",
 		LabelR:  "Answer",
-		BgURL:   "./bg.jpg",
-		AvaURL:  "./avatar.jpg",
-		IconURL: "./icon.png",
+		BgURL:   "https://images.unsplash.com/photo-1534469589579-86bd01bc003a",
+		AvaURL:  "https://avatars.githubusercontent.com/u/2134568?v=4",
+		IconURL: "https://i.imgur.com/PqhZXkZ.png",
 		IconW:   48,
 		IconH:   48,
 	})

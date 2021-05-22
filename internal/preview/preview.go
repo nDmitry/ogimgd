@@ -7,12 +7,12 @@ import (
 	"image/color"
 	"log"
 	"math"
-	"os"
 	"path/filepath"
 	"unicode/utf8"
 
 	"github.com/davidbyttow/govips/v2/vips"
 	"github.com/fogleman/gg"
+	"github.com/nDmitry/ogimgd/internal/remote"
 )
 
 const (
@@ -22,12 +22,18 @@ const (
 	maxTitleLength = 90
 )
 
+type getter interface {
+	Get(url string) ([]byte, error)
+}
+
 // Options defines a set of options required to draw a p.ctx.
 type Options struct {
 	// Canvas width
 	CanvasW int
 	// Canvas height
 	CanvasH int
+	// Opacity value for the black foreground under the title
+	Opacity float64
 	// Avatar diameter
 	AvaD   int
 	Title  string
@@ -49,14 +55,16 @@ type Options struct {
 }
 
 type Preview struct {
-	Opts Options
-	ctx  *gg.Context
+	Opts   Options
+	ctx    *gg.Context
+	remote getter
 }
 
 func New(opts Options) *Preview {
 	return &Preview{
-		Opts: opts,
-		ctx:  gg.NewContext(opts.CanvasW, opts.CanvasH),
+		Opts:   opts,
+		ctx:    gg.NewContext(opts.CanvasW, opts.CanvasH),
+		remote: remote.New(),
 	}
 }
 
@@ -90,7 +98,7 @@ func (p *Preview) Draw() (image.Image, error) {
 }
 
 func (p *Preview) drawBackground() error {
-	bgBuf, err := os.ReadFile(p.Opts.BgURL)
+	bgBuf, err := p.remote.Get(p.Opts.BgURL)
 
 	if err != nil {
 		return fmt.Errorf("could not get the background %s: %w", p.Opts.BgURL, err)
@@ -114,7 +122,7 @@ func (p *Preview) drawBackground() error {
 }
 
 func (p *Preview) drawForeground() error {
-	p.ctx.SetColor(color.RGBA{0, 0, 0, 155})
+	p.ctx.SetColor(color.RGBA{0, 0, 0, uint8(255.0 * p.Opts.Opacity)})
 	p.ctx.DrawRectangle(margin, margin, float64(p.Opts.CanvasW)-(margin*2), float64(p.Opts.CanvasH)-(margin*2))
 	p.ctx.Fill()
 
@@ -131,7 +139,7 @@ func (p *Preview) drawAvatar() error {
 	p.ctx.Fill()
 
 	// draw the avatar itself (cropped to a circle)
-	avaBuf, err := os.ReadFile(p.Opts.AvaURL)
+	avaBuf, err := p.remote.Get(p.Opts.AvaURL)
 
 	if err != nil {
 		return fmt.Errorf("could not get the avatar %s: %w", p.Opts.AvaURL, err)
@@ -198,7 +206,7 @@ func (p *Preview) drawLabel() error {
 	p.ctx.DrawString(p.Opts.LabelR, labelX, labelY)
 
 	// draw the icon
-	iconBuf, err := os.ReadFile(p.Opts.IconURL)
+	iconBuf, err := p.remote.Get(p.Opts.IconURL)
 
 	if err != nil {
 		return fmt.Errorf("could not get the icon: %w", err)
