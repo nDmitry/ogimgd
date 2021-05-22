@@ -256,10 +256,10 @@ func (p *Preview) drawLabel(iconBuf []byte) error {
 		return fmt.Errorf("could not decode the icon: %w", err)
 	}
 
-	iconX := int(labelX) - p.opts.IconW - int(margin/2)
-	iconY := p.opts.CanvasH - int(padding) - int(labelRightHeight)
+	iconX := int(labelX) - p.opts.IconW - margin/2
+	iconY := int(labelY - labelRightHeight/3)
 
-	p.ctx.DrawImage(iconImg, iconX, iconY)
+	p.ctx.DrawImageAnchored(iconImg, iconX, iconY, 0, 0.5)
 
 	if len(p.opts.LabelL) > 0 {
 		labelLeftWidth, _ := p.ctx.MeasureString(p.opts.LabelL)

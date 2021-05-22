@@ -35,7 +35,7 @@ func getPreview(d drawer) http.HandlerFunc {
 			IconH:      48,
 			TitleSize:  76,
 			AuthorSize: 36,
-			LabelSize:  36,
+			LabelSize:  40,
 			Quality:    84,
 		}
 
