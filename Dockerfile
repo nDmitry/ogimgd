@@ -9,7 +9,7 @@ WORKDIR /build
 RUN go get ./...
 RUN go build -a -o /build/app -ldflags="-s -w -h" ./cmd/ogimgd
 
-FROM alpine:latest
+FROM alpine:3.13
 RUN apk --no-cache add ca-certificates mailcap vips-dev
 COPY --from=builder /build/app /app/ogimgd
 WORKDIR /app
