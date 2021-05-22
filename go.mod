@@ -1,4 +1,4 @@
-module github.com/nDmitry/previewer
+module github.com/nDmitry/ogimgd
 
 go 1.16
 

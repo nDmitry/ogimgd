@@ -2,12 +2,17 @@ package main
 
 import (
 	"fmt"
+	"image"
 	"image/jpeg"
 	"os"
 
 	"github.com/davidbyttow/govips/v2/vips"
-	"github.com/nDmitry/previewer/internal/drawer"
+	"github.com/nDmitry/ogimgd/internal/preview"
 )
+
+type drawer interface {
+	Draw() (image.Image, error)
+}
 
 func main() {
 	vips.LoggingSettings(nil, vips.LogLevelError)
@@ -15,14 +20,7 @@ func main() {
 	vips.Startup(nil)
 	defer vips.Shutdown()
 
-	if err := run(); err != nil {
-		fmt.Fprintf(os.Stderr, "%s\n", err)
-		os.Exit(1)
-	}
-}
-
-func run() error {
-	img, err := drawer.Draw(drawer.Options{
+	p := preview.New(preview.Options{
 		CanvasW: 1200,
 		CanvasH: 630,
 		AvaD:    64,
@@ -36,6 +34,15 @@ func run() error {
 		IconW:   48,
 		IconH:   48,
 	})
+
+	if err := run(p); err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", err)
+		os.Exit(1)
+	}
+}
+
+func run(d drawer) error {
+	img, err := d.Draw()
 
 	if err != nil {
 		return err
