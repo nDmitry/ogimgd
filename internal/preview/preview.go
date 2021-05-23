@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"unicode/utf8"
 
+	"github.com/AndreKR/multiface"
 	"github.com/davidbyttow/govips/v2/vips"
 	"github.com/fogleman/gg"
 	"github.com/golang/freetype/truetype"
@@ -26,6 +27,9 @@ const (
 	maxTitleLength    = 90
 	defaultBgColor    = "#FFFFFF"
 	avatarBorderColor = "#FFFFFF"
+	textFont          = "fonts/Ubuntu-Medium.ttf"
+	symbolsFont       = "fonts/NotoSansSymbols-Medium.ttf"
+	emojiFont         = "fonts/NotoEmoji-Regular.ttf"
 )
 
 //go:embed fonts/*
@@ -204,7 +208,7 @@ func (p *Preview) drawAvatar(avaBuf []byte) error {
 }
 
 func (p *Preview) drawAuthor() error {
-	font, err := loadFont("fonts/Ubuntu-Medium.ttf", p.opts.AuthorSize)
+	font, err := loadFont(textFont, p.opts.AuthorSize)
 
 	if err != nil {
 		return fmt.Errorf("could not load a font face: %w", err)
@@ -222,7 +226,7 @@ func (p *Preview) drawAuthor() error {
 }
 
 func (p *Preview) drawTitle() error {
-	font, err := loadFont("fonts/Ubuntu-Medium.ttf", p.opts.TitleSize)
+	font, err := loadFont(textFont, p.opts.TitleSize)
 
 	if err != nil {
 		return fmt.Errorf("could not load a font face: %w", err)
@@ -361,22 +365,60 @@ func circle(src image.Image) image.Image {
 }
 
 func loadFont(name string, points float64) (font.Face, error) {
-	fontBytes, err := fonts.ReadFile(name)
+	face := new(multiface.Face)
+	textBuf, err := fonts.ReadFile(name)
 
 	if err != nil {
 		return nil, err
 	}
 
-	f, err := truetype.Parse(fontBytes)
+	textFont, err := truetype.Parse(textBuf)
 
 	if err != nil {
 		return nil, err
 	}
 
-	face := truetype.NewFace(f, &truetype.Options{
+	textFace := truetype.NewFace(textFont, &truetype.Options{
 		Size: points,
-		// Hinting: font.HintingFull,
 	})
+
+	face.AddTruetypeFace(textFace, textFont)
+
+	symbolsBuf, err := fonts.ReadFile(symbolsFont)
+
+	if err != nil {
+		return nil, err
+	}
+
+	symbolsFont, err := truetype.Parse(symbolsBuf)
+
+	if err != nil {
+		return nil, err
+	}
+
+	symbolsFace := truetype.NewFace(symbolsFont, &truetype.Options{
+		Size: points,
+	})
+
+	face.AddTruetypeFace(symbolsFace, symbolsFont)
+
+	emojiBuf, err := fonts.ReadFile(emojiFont)
+
+	if err != nil {
+		return nil, err
+	}
+
+	emojiFont, err := truetype.Parse(emojiBuf)
+
+	if err != nil {
+		return nil, err
+	}
+
+	emojiFace := truetype.NewFace(emojiFont, &truetype.Options{
+		Size: points,
+	})
+
+	face.AddTruetypeFace(emojiFace, emojiFont)
 
 	return face, nil
 }
