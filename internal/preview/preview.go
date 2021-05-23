@@ -9,6 +9,7 @@ import (
 	"image/color"
 	"log"
 	"math"
+	"regexp"
 	"unicode/utf8"
 
 	"github.com/davidbyttow/govips/v2/vips"
@@ -19,18 +20,21 @@ import (
 )
 
 const (
-	margin         = 20.0
-	padding        = 48.0
-	border         = 8
-	maxTitleLength = 90
+	margin            = 20.0
+	padding           = 48.0
+	border            = 8
+	maxTitleLength    = 90
+	defaultBgColor    = "#FFFFFF"
+	avatarBorderColor = "#FFFFFF"
 )
+
+//go:embed fonts/*
+var fonts embed.FS
+var hexRe = regexp.MustCompile("^#(?:[0-9a-fA-F]{3}){1,2}$")
 
 type getter interface {
 	GetAll(context.Context, []string) ([][]byte, error)
 }
-
-//go:embed fonts/*
-var fonts embed.FS
 
 // Options defines a set of options required to draw a p.ctx.
 type Options struct {
@@ -54,8 +58,9 @@ type Options struct {
 	LabelR string
 	// Label font size
 	LabelSize float64
-	// An URL to a background image, either of canvas size or it will be thumbnailed and smart-cropped
-	BgURL string
+	// Either an URL to a remote background image, or filename of the local image, or a HEX-color
+	// An image will be thumbnailed and smart-cropped if it's not of the canvas size
+	Bg string
 	// An URL to an author avatar pic
 	AvaURL string
 	// An URL to a logo image
@@ -86,22 +91,37 @@ func New() *Preview {
 func (p *Preview) Draw(ctx context.Context, opts Options) (image.Image, error) {
 	p.opts = &opts
 	p.ctx = gg.NewContext(opts.CanvasW, opts.CanvasH)
-	urlsOrPaths := []string{opts.BgURL, opts.AvaURL, opts.LogoURL}
+	bgColor := defaultBgColor
+	urlsOrPaths := []string{opts.AvaURL, opts.LogoURL}
+	isBgHEX := hexRe.Match([]byte(p.opts.Bg))
+
+	if isBgHEX {
+		bgColor = p.opts.Bg
+	} else if p.opts.Bg != "" {
+		urlsOrPaths = append(urlsOrPaths, p.opts.Bg)
+	}
+
 	imgBufs, err := p.remote.GetAll(ctx, urlsOrPaths)
 
 	if err != nil {
 		return nil, fmt.Errorf("could not get an image: %w", err)
 	}
 
-	if err := p.drawBackground(imgBufs[0]); err != nil {
-		return nil, err
+	if isBgHEX || p.opts.Bg == "" {
+		if err := p.drawBackground(nil, bgColor); err != nil {
+			return nil, err
+		}
+	} else {
+		if err := p.drawBackground(imgBufs[2], bgColor); err != nil {
+			return nil, err
+		}
 	}
 
 	if err := p.drawForeground(); err != nil {
 		return nil, err
 	}
 
-	if err := p.drawAvatar(imgBufs[1]); err != nil {
+	if err := p.drawAvatar(imgBufs[0]); err != nil {
 		return nil, err
 	}
 
@@ -113,14 +133,22 @@ func (p *Preview) Draw(ctx context.Context, opts Options) (image.Image, error) {
 		return nil, err
 	}
 
-	if err := p.drawLogo(imgBufs[2]); err != nil {
+	if err := p.drawLogo(imgBufs[1]); err != nil {
 		return nil, err
 	}
 
 	return p.ctx.Image(), nil
 }
 
-func (p *Preview) drawBackground(bgBuf []byte) error {
+func (p *Preview) drawBackground(bgBuf []byte, bgColor string) error {
+	if bgBuf == nil {
+		p.ctx.SetHexColor(bgColor)
+		p.ctx.DrawRectangle(0, 0, float64(p.opts.CanvasW), float64(p.opts.CanvasH))
+		p.ctx.Fill()
+
+		return nil
+	}
+
 	bgBuf, err := resize(bgBuf, p.opts.CanvasW, p.opts.CanvasH)
 
 	if err != nil {
@@ -152,7 +180,7 @@ func (p *Preview) drawAvatar(avaBuf []byte) error {
 	avaY := padding + float64(p.opts.AvaD+border)/2
 
 	p.ctx.DrawCircle(avaX, avaY, float64((p.opts.AvaD+8)/2))
-	p.ctx.SetHexColor("#FFFFFF")
+	p.ctx.SetHexColor(avatarBorderColor)
 	p.ctx.Fill()
 
 	// draw the avatar itself (cropped to a circle)

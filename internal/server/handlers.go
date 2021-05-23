@@ -58,12 +58,9 @@ func getPreview(d drawer) http.HandlerFunc {
 
 		bgParam := r.URL.Query().Get("bg")
 
-		if bgParam == "" {
-			handleBadRequest(w, errors.New("Missing required bg parameter"))
-			return
+		if bgParam != "" {
+			opts.Bg = bgParam
 		}
-
-		opts.BgURL = bgParam
 
 		avaParam := r.URL.Query().Get("ava")
 
