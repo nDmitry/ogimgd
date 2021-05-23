@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"image"
@@ -97,7 +98,17 @@ func getPreview(d drawer) http.HandlerFunc {
 			panic(err)
 		}
 
-		w.WriteHeader(http.StatusOK)
-		jpeg.Encode(w, img, &jpeg.Options{Quality: opts.Quality})
+		buf := new(bytes.Buffer)
+
+		if err = jpeg.Encode(buf, img, &jpeg.Options{Quality: opts.Quality}); err != nil {
+			panic(err)
+		}
+
+		w.Header().Set("Content-Type", "image/jpeg")
+		w.Header().Set("Content-Length", strconv.Itoa(len(buf.Bytes())))
+
+		if _, err := w.Write(buf.Bytes()); err != nil {
+			panic(err)
+		}
 	}
 }
