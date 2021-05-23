@@ -58,12 +58,10 @@ type Options struct {
 	BgURL string
 	// An URL to an author avatar pic
 	AvaURL string
-	// An URL to an icon image
-	IconURL string
-	// Icon width
-	IconW int
-	// Icon height
-	IconH int
+	// An URL to a logo image
+	LogoURL string
+	// Logo height
+	LogoH int
 	// Resulting JPEG quality
 	Quality int
 }
@@ -88,8 +86,7 @@ func New() *Preview {
 func (p *Preview) Draw(ctx context.Context, opts Options) (image.Image, error) {
 	p.opts = &opts
 	p.ctx = gg.NewContext(opts.CanvasW, opts.CanvasH)
-	urlsOrPaths := []string{opts.BgURL, opts.AvaURL, opts.IconURL}
-
+	urlsOrPaths := []string{opts.BgURL, opts.AvaURL, opts.LogoURL}
 	imgBufs, err := p.remote.GetAll(ctx, urlsOrPaths)
 
 	if err != nil {
@@ -116,7 +113,7 @@ func (p *Preview) Draw(ctx context.Context, opts Options) (image.Image, error) {
 		return nil, err
 	}
 
-	if err := p.drawLabel(imgBufs[2]); err != nil {
+	if err := p.drawLogo(imgBufs[2]); err != nil {
 		return nil, err
 	}
 
@@ -220,55 +217,23 @@ func (p *Preview) drawTitle() error {
 	return nil
 }
 
-func (p *Preview) drawLabel(iconBuf []byte) error {
-	// draw the required right part of the label
-	labelX := float64(p.opts.CanvasW) - padding
-	labelY := float64(p.opts.CanvasH) - padding
-	labelRightWidth := 0.0
-	labelRightHeight := padding
-
-	if len(p.opts.LabelL) > 0 {
-		font, err := loadFont("fonts/Ubuntu-Bold.ttf", p.opts.LabelSize)
-
-		if err != nil {
-			return fmt.Errorf("could not load a font face: %w", err)
-		}
-
-		p.ctx.SetFontFace(font)
-		p.ctx.SetColor(color.White)
-
-		labelRightWidth, labelRightHeight = p.ctx.MeasureString(p.opts.LabelR)
-		labelX -= labelRightWidth
-
-		p.ctx.DrawString(p.opts.LabelR, labelX, labelY)
-	}
-
-	// draw the icon
-	iconBuf, err := resize(iconBuf, p.opts.IconW, p.opts.IconH)
+func (p *Preview) drawLogo(logoBuf []byte) error {
+	logoBuf, err := scale(logoBuf, p.opts.LogoH)
 
 	if err != nil {
-		return fmt.Errorf("could not resize the icon: %w", err)
+		return fmt.Errorf("could not resize the logo: %w", err)
 	}
 
-	iconImg, _, err := image.Decode(bytes.NewReader(iconBuf))
+	logoImg, _, err := image.Decode(bytes.NewReader(logoBuf))
 
 	if err != nil {
-		return fmt.Errorf("could not decode the icon: %w", err)
+		return fmt.Errorf("could not decode the logo: %w", err)
 	}
 
-	iconX := int(labelX) - p.opts.IconW - margin/2
-	iconY := int(labelY - labelRightHeight/3)
+	logoX := p.opts.CanvasW - padding - logoImg.Bounds().Dx()
+	logoY := p.opts.CanvasH - padding - p.opts.LogoH
 
-	p.ctx.DrawImageAnchored(iconImg, iconX, iconY, 0, 0.5)
-
-	if len(p.opts.LabelL) > 0 {
-		labelLeftWidth, _ := p.ctx.MeasureString(p.opts.LabelL)
-
-		labelX = float64(p.opts.CanvasW) - labelLeftWidth - labelRightWidth - float64(p.opts.IconW) - margin - padding
-		labelY = float64(p.opts.CanvasH) - padding
-
-		p.ctx.DrawString(p.opts.LabelL, labelX, labelY)
-	}
+	p.ctx.DrawImage(logoImg, logoX, logoY)
 
 	return nil
 }
@@ -297,6 +262,41 @@ func resize(buf []byte, w, h int) ([]byte, error) {
 	defer vipsImg.Close()
 
 	if err = vipsImg.Thumbnail(w, h, vips.InterestingAttention); err != nil {
+		return nil, err
+	}
+
+	buf, _, err = vipsImg.Export(vips.NewDefaultExportParams())
+
+	if err != nil {
+		return nil, err
+	}
+
+	return buf, nil
+}
+
+// scale resizes an image to the specified height if it differs. Width of the image is auto.
+func scale(buf []byte, h int) ([]byte, error) {
+	config, _, err := image.DecodeConfig(bytes.NewReader(buf))
+
+	if err != nil {
+		return nil, err
+	}
+
+	if config.Height == h {
+		return buf, nil
+	}
+
+	log.Printf("Scaling an image to %dpx height", h)
+
+	vipsImg, err := vips.NewImageFromBuffer(buf)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer vipsImg.Close()
+
+	if err = vipsImg.Resize(float64(h)/float64(config.Height), vips.KernelAuto); err != nil {
 		return nil, err
 	}
 

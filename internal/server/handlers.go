@@ -31,8 +31,7 @@ func getPreview(d drawer) http.HandlerFunc {
 			CanvasH:    630,
 			Opacity:    0.6,
 			AvaD:       64,
-			IconW:      48,
-			IconH:      48,
+			LogoH:      48,
 			TitleSize:  76,
 			AuthorSize: 36,
 			LabelSize:  40,
@@ -75,26 +74,14 @@ func getPreview(d drawer) http.HandlerFunc {
 
 		opts.AvaURL = avaParam
 
-		iconParam := r.URL.Query().Get("icon")
+		logoParam := r.URL.Query().Get("logo")
 
-		if iconParam == "" {
-			handleBadRequest(w, errors.New("Missing required icon parameter"))
+		if logoParam == "" {
+			handleBadRequest(w, errors.New("Missing required logo parameter"))
 			return
 		}
 
-		opts.IconURL = iconParam
-
-		labelLParam := r.URL.Query().Get("label_l")
-
-		if labelLParam != "" {
-			opts.LabelL = labelLParam
-		}
-
-		labelRParam := r.URL.Query().Get("label_r")
-
-		if labelRParam != "" {
-			opts.LabelR = labelRParam
-		}
+		opts.LogoURL = logoParam
 
 		opacityParam := r.URL.Query().Get("op")
 
