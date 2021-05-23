@@ -6,6 +6,9 @@ test:
 race:
 	go test ./... -race
 
+bench:
+	go test -bench=. ./...
+
 coverage:
 	go tool cover -func cover.out
 

@@ -14,7 +14,7 @@ import (
 	"github.com/nDmitry/ogimgd/internal/preview"
 )
 
-func TestPreviewHandler_Success(t *testing.T) {
+func TestGetPreviewHandler_Success(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		file, err := os.ReadFile("./testdata/bg.jpg")
 
@@ -80,7 +80,7 @@ func TestPreviewHandler_Success(t *testing.T) {
 	}
 }
 
-func TestPreviewHandler_Bad(t *testing.T) {
+func TestGetPreviewHandler_Bad(t *testing.T) {
 	p := preview.New()
 	handler := getPreview(p)
 
@@ -140,5 +140,23 @@ func TestPreviewHandler_Bad(t *testing.T) {
 				t.Errorf("error messages are not equal, expected: %s, actual: %s", tt.expected, mes.Message)
 			}
 		})
+	}
+}
+
+func BenchmarkGetPreviewHandler(b *testing.B) {
+	p := preview.New()
+	handler := getPreview(p)
+
+	for n := 0; n < b.N; n++ {
+		req := httptest.NewRequest(
+			"GET",
+			"/preview?title=The%20quick%20brown%20fox%20jumps%20over%20the%20lazy%20dog&author=%40Tester&ava=avatar.png&logo=logo.png&bg=%23FFA",
+			nil,
+		)
+
+		w := httptest.NewRecorder()
+
+		handler(w, req)
+		w.Result()
 	}
 }

@@ -208,7 +208,7 @@ func (p *Preview) drawAvatar(avaBuf []byte) error {
 }
 
 func (p *Preview) drawAuthor() error {
-	font, err := loadFont(textFont, p.opts.AuthorSize)
+	font, err := loadFont(p.opts.AuthorSize)
 
 	if err != nil {
 		return fmt.Errorf("could not load a font face: %w", err)
@@ -226,7 +226,7 @@ func (p *Preview) drawAuthor() error {
 }
 
 func (p *Preview) drawTitle() error {
-	font, err := loadFont(textFont, p.opts.TitleSize)
+	font, err := loadFont(p.opts.TitleSize)
 
 	if err != nil {
 		return fmt.Errorf("could not load a font face: %w", err)
@@ -364,9 +364,9 @@ func circle(src image.Image) image.Image {
 	return mask.Image()
 }
 
-func loadFont(name string, points float64) (font.Face, error) {
+func loadFont(points float64) (font.Face, error) {
 	face := new(multiface.Face)
-	textBuf, err := fonts.ReadFile(name)
+	textBuf, err := fonts.ReadFile(textFont)
 
 	if err != nil {
 		return nil, err
