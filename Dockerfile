@@ -1,4 +1,4 @@
-FROM alpine:edge AS builder
+FROM golang:1.16-alpine3.13 AS builder
 
 ENV GOOS=linux
 ENV CGO_CFLAGS_ALLOW="-Xpreprocessor"
@@ -9,7 +9,7 @@ WORKDIR /build
 RUN go get ./...
 RUN go build -a -o /build/app -ldflags="-s -w -h" ./cmd/ogimgd
 
-FROM alpine:latest
+FROM alpine:3.13
 RUN apk --no-cache add ca-certificates mailcap vips
 COPY --from=builder /build/app /app/ogimgd
 WORKDIR /app
