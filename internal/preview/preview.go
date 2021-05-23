@@ -3,7 +3,6 @@ package preview
 import (
 	"bytes"
 	"context"
-	"embed"
 	"fmt"
 	"image"
 	"image/color"
@@ -12,12 +11,9 @@ import (
 	"regexp"
 	"unicode/utf8"
 
-	"github.com/AndreKR/multiface"
 	"github.com/davidbyttow/govips/v2/vips"
 	"github.com/fogleman/gg"
-	"github.com/golang/freetype/truetype"
 	"github.com/nDmitry/ogimgd/internal/remote"
-	"golang.org/x/image/font"
 )
 
 const (
@@ -32,8 +28,6 @@ const (
 	emojiFont         = "fonts/NotoEmoji-Regular.ttf"
 )
 
-//go:embed fonts/*
-var fonts embed.FS
 var hexRe = regexp.MustCompile("^#(?:[0-9a-fA-F]{3}){1,2}$")
 
 type getter interface {
@@ -362,63 +356,4 @@ func circle(src image.Image) image.Image {
 	mask.DrawImage(src, 0, 0)
 
 	return mask.Image()
-}
-
-func loadFont(points float64) (font.Face, error) {
-	face := new(multiface.Face)
-	textBuf, err := fonts.ReadFile(textFont)
-
-	if err != nil {
-		return nil, err
-	}
-
-	textFont, err := truetype.Parse(textBuf)
-
-	if err != nil {
-		return nil, err
-	}
-
-	textFace := truetype.NewFace(textFont, &truetype.Options{
-		Size: points,
-	})
-
-	face.AddTruetypeFace(textFace, textFont)
-
-	symbolsBuf, err := fonts.ReadFile(symbolsFont)
-
-	if err != nil {
-		return nil, err
-	}
-
-	symbolsFont, err := truetype.Parse(symbolsBuf)
-
-	if err != nil {
-		return nil, err
-	}
-
-	symbolsFace := truetype.NewFace(symbolsFont, &truetype.Options{
-		Size: points,
-	})
-
-	face.AddTruetypeFace(symbolsFace, symbolsFont)
-
-	emojiBuf, err := fonts.ReadFile(emojiFont)
-
-	if err != nil {
-		return nil, err
-	}
-
-	emojiFont, err := truetype.Parse(emojiBuf)
-
-	if err != nil {
-		return nil, err
-	}
-
-	emojiFace := truetype.NewFace(emojiFont, &truetype.Options{
-		Size: points,
-	})
-
-	face.AddTruetypeFace(emojiFace, emojiFont)
-
-	return face, nil
 }
