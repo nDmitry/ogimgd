@@ -23,9 +23,6 @@ const (
 	maxTitleLength    = 90
 	defaultBgColor    = "#FFFFFF"
 	avatarBorderColor = "#FFFFFF"
-	textFont          = "fonts/Ubuntu-Medium.ttf"
-	symbolsFont       = "fonts/NotoSansSymbols-Medium.ttf"
-	emojiFont         = "fonts/NotoEmoji-Regular.ttf"
 )
 
 var hexRe = regexp.MustCompile("^#(?:[0-9a-fA-F]{3}){1,2}$")

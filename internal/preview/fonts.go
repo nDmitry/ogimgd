@@ -9,6 +9,13 @@ import (
 	"golang.org/x/image/font"
 )
 
+const (
+	textFont    = "fonts/Ubuntu-Medium.ttf"
+	symbolsFont = "fonts/NotoSansSymbols-Medium.ttf"
+	emoji1Font  = "fonts/NotoEmoji-Regular.ttf"
+	emoji2Font  = "fonts/Symbola.ttf"
+)
+
 //go:embed fonts/*
 var fonts embed.FS
 var cache sync.Map
@@ -59,23 +66,41 @@ func loadFont(points float64) (font.Face, error) {
 
 	face.AddTruetypeFace(symbolsFace, symbolsFont)
 
-	emojiBuf, err := fonts.ReadFile(emojiFont)
+	emoji1Buf, err := fonts.ReadFile(emoji1Font)
 
 	if err != nil {
 		return nil, err
 	}
 
-	emojiFont, err := truetype.Parse(emojiBuf)
+	emoji1Font, err := truetype.Parse(emoji1Buf)
 
 	if err != nil {
 		return nil, err
 	}
 
-	emojiFace := truetype.NewFace(emojiFont, &truetype.Options{
+	emoji1Face := truetype.NewFace(emoji1Font, &truetype.Options{
 		Size: points,
 	})
 
-	face.AddTruetypeFace(emojiFace, emojiFont)
+	face.AddTruetypeFace(emoji1Face, emoji1Font)
+
+	emoji2Buf, err := fonts.ReadFile(emoji2Font)
+
+	if err != nil {
+		return nil, err
+	}
+
+	emoji2Font, err := truetype.Parse(emoji2Buf)
+
+	if err != nil {
+		return nil, err
+	}
+
+	emoji2Face := truetype.NewFace(emoji2Font, &truetype.Options{
+		Size: points,
+	})
+
+	face.AddTruetypeFace(emoji2Face, emoji2Font)
 	cache.Store(points, face)
 
 	return face, nil
