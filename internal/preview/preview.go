@@ -23,12 +23,15 @@ const (
 	maxTitleLength    = 90
 	defaultBgColor    = "#FFFFFF"
 	avatarBorderColor = "#FFFFFF"
+	logoKey           = "logo"
+	avaKey            = "avatar"
+	bgKey             = "bg"
 )
 
 var hexRe = regexp.MustCompile("^#(?:[0-9a-fA-F]{3}){1,2}$")
 
 type getter interface {
-	GetAll(context.Context, []string) ([][]byte, error)
+	GetAll(context.Context, map[string]string) (map[string][]byte, error)
 }
 
 // Options defines a set of options required to draw a p.ctx.
@@ -87,13 +90,17 @@ func (p *Preview) Draw(ctx context.Context, opts Options) (image.Image, error) {
 	p.opts = &opts
 	p.ctx = gg.NewContext(opts.CanvasW, opts.CanvasH)
 	bgColor := defaultBgColor
-	urlsOrPaths := []string{opts.AvaURL, opts.LogoURL}
 	isBgHEX := hexRe.Match([]byte(p.opts.Bg))
+	urlsOrPaths := map[string]string{logoKey: p.opts.LogoURL}
+
+	if opts.AvaURL != "" {
+		urlsOrPaths[avaKey] = p.opts.AvaURL
+	}
 
 	if isBgHEX {
 		bgColor = p.opts.Bg
 	} else if p.opts.Bg != "" {
-		urlsOrPaths = append(urlsOrPaths, p.opts.Bg)
+		urlsOrPaths[bgKey] = p.opts.Bg
 	}
 
 	imgBufs, err := p.remote.GetAll(ctx, urlsOrPaths)
@@ -107,7 +114,7 @@ func (p *Preview) Draw(ctx context.Context, opts Options) (image.Image, error) {
 			return nil, err
 		}
 	} else {
-		if err := p.drawBackground(imgBufs[2], bgColor); err != nil {
+		if err := p.drawBackground(imgBufs[bgKey], bgColor); err != nil {
 			return nil, err
 		}
 	}
@@ -116,8 +123,10 @@ func (p *Preview) Draw(ctx context.Context, opts Options) (image.Image, error) {
 		return nil, err
 	}
 
-	if err := p.drawAvatar(imgBufs[0]); err != nil {
-		return nil, err
+	if _, exists := imgBufs[avaKey]; exists {
+		if err := p.drawAvatar(imgBufs[avaKey]); err != nil {
+			return nil, err
+		}
 	}
 
 	if err := p.drawAuthor(); err != nil {
@@ -128,7 +137,7 @@ func (p *Preview) Draw(ctx context.Context, opts Options) (image.Image, error) {
 		return nil, err
 	}
 
-	if err := p.drawLogo(imgBufs[1]); err != nil {
+	if err := p.drawLogo(imgBufs[logoKey]); err != nil {
 		return nil, err
 	}
 
@@ -199,6 +208,10 @@ func (p *Preview) drawAvatar(avaBuf []byte) error {
 }
 
 func (p *Preview) drawAuthor() error {
+	if p.opts.Author == "" {
+		return nil
+	}
+
 	font, err := loadFont(p.opts.AuthorSize)
 
 	if err != nil {

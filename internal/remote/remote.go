@@ -76,26 +76,26 @@ func (r *Remote) Get(ctx context.Context, urlOrPath string) (buf []byte, err err
 }
 
 // GetAll fetches remote resources concurrently using Get
-func (r *Remote) GetAll(ctx context.Context, urlsOrPaths []string) ([][]byte, error) {
-	bufs := make([][]byte, len(urlsOrPaths))
+func (r *Remote) GetAll(ctx context.Context, urlsOrPaths map[string]string) (map[string][]byte, error) {
+	bufs := make(map[string][]byte, len(urlsOrPaths))
 	errCh := make(chan error)
 	doneCh := make(chan bool)
 	var wg sync.WaitGroup
 
 	wg.Add(len(urlsOrPaths))
 
-	for i, urlOrPath := range urlsOrPaths {
-		go func(i int, urlOrPath string) {
+	for key, urlOrPath := range urlsOrPaths {
+		go func(key string, urlOrPath string) {
 			buf, err := r.Get(ctx, urlOrPath)
 
 			if err != nil {
 				errCh <- err
 			}
 
-			bufs[i] = buf
+			bufs[key] = buf
 
 			wg.Done()
-		}(i, urlOrPath)
+		}(key, urlOrPath)
 	}
 
 	go func() {

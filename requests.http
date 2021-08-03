@@ -15,3 +15,8 @@ GET http://localhost:8201/preview?title=The%20quick%20brown%20fox%20jumps%20over
 
 # only local and already resized images, color background
 GET http://localhost:8201/preview?title=The%20quick%20brown%20fox%20jumps%20over%20the%20lazy%20dog.%20Sphinx%20of%20black%20quartz%2C%20judge%20my%20vow&author=%40DmitryNikitenko&bg=%23FFA&ava=avatar.png&logo=logo.png&op=0.5
+
+###
+
+# hidden author section
+GET http://localhost:8201/preview?title=The%20quick%20brown%20fox%20jumps%20over%20the%20lazy%20dog&logo=logo.png

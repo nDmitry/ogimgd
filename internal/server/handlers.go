@@ -50,12 +50,11 @@ func getPreview(d drawer) http.HandlerFunc {
 
 		authorParam := r.URL.Query().Get("author")
 
-		if authorParam == "" {
-			handleBadRequest(w, errors.New("Missing required author parameter"))
-			return
+		if authorParam != "" {
+			opts.Author = authorParam
+		} else {
+			opts.AvaD = 0
 		}
-
-		opts.Author = authorParam
 
 		bgParam := r.URL.Query().Get("bg")
 
@@ -65,12 +64,11 @@ func getPreview(d drawer) http.HandlerFunc {
 
 		avaParam := r.URL.Query().Get("ava")
 
-		if avaParam == "" {
-			handleBadRequest(w, errors.New("Missing required ava parameter"))
-			return
+		if avaParam != "" {
+			opts.AvaURL = avaParam
+		} else {
+			opts.AuthorSize = 0
 		}
-
-		opts.AvaURL = avaParam
 
 		logoParam := r.URL.Query().Get("logo")
 
