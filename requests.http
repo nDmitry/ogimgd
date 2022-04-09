@@ -20,3 +20,7 @@ GET http://localhost:8201/preview?title=The%20quick%20brown%20fox%20jumps%20over
 
 # hidden author section
 GET http://localhost:8201/preview?title=The%20quick%20brown%20fox%20jumps%20over%20the%20lazy%20dog&logo=logo.png
+
+###
+
+GET http://localhost:8201/preview?op=0.65&title=Во%20что%20сейчас%20инвестировать?&bg=https://capital-gain.ru/wp-content/uploads/what-to-invest-in-now.jpeg&logo=https://capital-gain.ru/wp-content/uploads/logo-text.png
